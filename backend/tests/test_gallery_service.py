@@ -37,7 +37,7 @@ def _iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
 
-def test_list_images_recursive_and_sorted_by_mtime() -> None:
+def test_list_images_recursive_and_sorted_lexicographically() -> None:
     tmp_path = _create_temp_dir()
     newer = tmp_path / "newer.jpg"
     older = tmp_path / "nested" / "older.png"
@@ -57,8 +57,8 @@ def test_list_images_recursive_and_sorted_by_mtime() -> None:
     )
     images = list_images(config)
 
-    assert [item.rel_path for item in images] == ["newer.jpg", "nested/older.png"]
-    assert images[0].url == "/api/media/newer.jpg"
+    assert [item.rel_path for item in images] == ["nested/older.png", "newer.jpg"]
+    assert images[0].url == "/api/media/nested/older.png"
 
 
 def test_list_images_non_recursive() -> None:
@@ -108,13 +108,14 @@ def test_list_folder_covers_supports_paging_and_cover_selection() -> None:
     first_page = list_folder_covers(config=config, page=1, page_size=2)
     assert first_page.total == 3
     assert first_page.total_pages == 2
-    assert [item.rel_dir for item in first_page.items] == ["album", "trip"]
-    assert first_page.items[0].cover.rel_path == "album/z-last.jpg"
-    assert first_page.items[0].latest_mtime == _iso(3000)
+    assert [item.rel_dir for item in first_page.items] == [".", "album"]
+    assert first_page.items[0].cover.rel_path == "root-b.jpg"
+    assert first_page.items[1].cover.rel_path == "album/z-last.jpg"
+    assert first_page.items[1].latest_mtime == _iso(3000)
 
     second_page = list_folder_covers(config=config, page=2, page_size=2)
-    assert [item.rel_dir for item in second_page.items] == ["."]
-    assert second_page.items[0].cover.rel_path == "root-b.jpg"
+    assert [item.rel_dir for item in second_page.items] == ["trip"]
+    assert second_page.items[0].cover.rel_path == "trip/a.jpg"
 
 
 def test_list_folder_images_returns_images_from_target_folder() -> None:
@@ -126,9 +127,9 @@ def test_list_folder_images_returns_images_from_target_folder() -> None:
     _write_file(new_image, b"\xff\xd8\xff")
     _write_file(other, b"\xff\xd8\xff")
 
-    os.utime(old_image, (1000, 1000))
-    os.utime(new_image, (2000, 2000))
-    os.utime(other, (3000, 3000))
+    os.utime(old_image, (3000, 3000))
+    os.utime(new_image, (1000, 1000))
+    os.utime(other, (2000, 2000))
 
     config = AppConfig(
         gallery_dir=tmp_path.resolve(),

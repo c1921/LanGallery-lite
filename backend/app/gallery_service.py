@@ -111,6 +111,10 @@ def _thumb_url(rel_path: str, size: int) -> str:
     return f"/api/thumb/{quote(rel_path, safe='/')}?size={size}"
 
 
+def _ci_sort_key(value: str) -> tuple[str, str]:
+    return (value.casefold(), value)
+
+
 def _default_thumb_builder(config: AppConfig) -> Callable[[str], str]:
     if not config.thumb_enabled:
         return _media_url
@@ -145,7 +149,7 @@ def _scan_images(
         )
         records.append((stats.st_mtime, image))
 
-    records.sort(key=lambda entry: entry[0], reverse=True)
+    records.sort(key=lambda entry: _ci_sort_key(entry[1].rel_path))
     return records
 
 
@@ -165,6 +169,7 @@ def _build_snapshot(
     for rel_dir, entries in groups.items():
         latest_entry = max(entries, key=lambda item: item[0])
         cover_image = max(entries, key=lambda item: (item[1].name, item[1].rel_path))[1]
+        sorted_entries = sorted(entries, key=lambda item: _ci_sort_key(item[1].rel_path))
         folder = GalleryFolderCover(
             id=rel_dir,
             name=_folder_display_name(rel_dir),
@@ -174,9 +179,9 @@ def _build_snapshot(
             latest_mtime=latest_entry[1].mtime,
         )
         folders.append((latest_entry[0], folder))
-        images_by_folder[rel_dir] = [item[1] for item in entries]
+        images_by_folder[rel_dir] = [item[1] for item in sorted_entries]
 
-    folders.sort(key=lambda item: (-item[0], item[1].rel_dir))
+    folders.sort(key=lambda item: _ci_sort_key(item[1].rel_dir))
     return GalleryIndexSnapshot(
         folders_ordered=[item[1] for item in folders],
         images_by_folder=images_by_folder,
