@@ -170,11 +170,13 @@ def create_app(config: AppConfig) -> FastAPI:
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=50, ge=1, le=200),
         refresh: bool = Query(default=False),
+        q: str | None = Query(default=None),
     ) -> FolderListResponse:
         folder_page = index_service.list_folder_covers(
             page=page,
             page_size=page_size,
             refresh=refresh,
+            search_query=q,
         )
         items = [
             FolderCoverItem(

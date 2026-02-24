@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,11 @@ from backend.app.gallery_service import (
 def _write_file(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
 def _create_temp_dir() -> Path:
@@ -116,6 +122,65 @@ def test_list_folder_covers_supports_paging_and_cover_selection() -> None:
     second_page = list_folder_covers(config=config, page=2, page_size=2)
     assert [item.rel_dir for item in second_page.items] == ["trip"]
     assert second_page.items[0].cover.rel_path == "trip/a.jpg"
+
+
+def test_list_folder_covers_supports_metadata_fuzzy_search() -> None:
+    tmp_path = _create_temp_dir()
+    album_image = tmp_path / "album" / "a.jpg"
+    trip_image = tmp_path / "trip" / "b.jpg"
+    album_metadata = tmp_path / "album" / "post_meta.json"
+    trip_metadata = tmp_path / "trip" / "post_meta.json"
+
+    _write_file(album_image, b"\xff\xd8\xff")
+    _write_file(trip_image, b"\xff\xd8\xff")
+    _write_json(
+        album_metadata,
+        {
+            "keywords": "Evon陈赞之,爱蜜社",
+            "description": "[IMiss爱蜜社] VOL.430 Evon陈赞之",
+        },
+    )
+    trip_metadata.write_text("{not-json", encoding="utf-8")
+
+    config = AppConfig(
+        gallery_dir=tmp_path.resolve(),
+        recursive=True,
+        extensions=frozenset({"jpg"}),
+    )
+
+    matched = list_folder_covers(
+        config=config,
+        page=1,
+        page_size=20,
+        search_query="陈赞之",
+    )
+    assert matched.total == 1
+    assert [item.rel_dir for item in matched.items] == ["album"]
+
+    casefold_matched = list_folder_covers(
+        config=config,
+        page=1,
+        page_size=20,
+        search_query="evon",
+    )
+    assert casefold_matched.total == 1
+    assert [item.rel_dir for item in casefold_matched.items] == ["album"]
+
+    invalid_metadata_ignored = list_folder_covers(
+        config=config,
+        page=1,
+        page_size=20,
+        search_query="trip",
+    )
+    assert invalid_metadata_ignored.total == 0
+
+    blank_query = list_folder_covers(
+        config=config,
+        page=1,
+        page_size=20,
+        search_query="   ",
+    )
+    assert blank_query.total == 2
 
 
 def test_list_folder_images_returns_images_from_target_folder() -> None:

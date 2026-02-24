@@ -49,6 +49,7 @@ python -m backend.app.main --gallery-dir "D:\Photos" --host 0.0.0.0 --port 8000
 可选查询参数：
 
 - `refresh=true`：强制同步刷新索引后再返回数据（`/api/images` 与 `/api/images/{rel_dir}` 支持）
+- `q=陈赞之`：按文件夹 `post_meta.json` 的 `keywords/description` 做模糊搜索（仅 `/api/images` 支持）
 
 ## 前端开发模式
 

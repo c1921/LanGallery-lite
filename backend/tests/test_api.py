@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from uuid import uuid4
@@ -13,6 +14,11 @@ from backend.app.main import create_app
 def _write_file(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
 def _create_temp_dir() -> Path:
@@ -29,12 +35,28 @@ def _build_client(tmp_path: Path) -> TestClient:
     album_cover = tmp_path / "album" / "z-cover.jpg"
     trip = tmp_path / "trip" / "a.jpg"
     text = tmp_path / "doc.txt"
+    album_metadata = tmp_path / "album" / "post_meta.json"
+    trip_metadata = tmp_path / "trip" / "post_meta.json"
 
     _write_file(root_image, b"\xff\xd8\xff")
     _write_file(album_new, b"\x89PNG\r\n\x1a\n")
     _write_file(album_cover, b"\xff\xd8\xff")
     _write_file(trip, b"\xff\xd8\xff")
     _write_file(text, b"text")
+    _write_json(
+        album_metadata,
+        {
+            "keywords": "Evon陈赞之,爱蜜社",
+            "description": "[IMiss爱蜜社] 2020.01.09 VOL.430 Evon陈赞之",
+        },
+    )
+    _write_json(
+        trip_metadata,
+        {
+            "keywords": "Alice,写真",
+            "description": "Trip album",
+        },
+    )
 
     os.utime(root_image, (1000, 1000))
     os.utime(album_new, (3000, 3000))
@@ -97,6 +119,17 @@ def test_images_endpoint_supports_refresh_param() -> None:
     client = _build_client(_create_temp_dir())
     response = client.get("/api/images?page=1&page_size=2&refresh=true")
     assert response.status_code == 200
+
+
+def test_images_endpoint_supports_metadata_search_query() -> None:
+    client = _build_client(_create_temp_dir())
+    response = client.get("/api/images?page=1&page_size=50&q=陈赞之")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["total_pages"] == 1
+    assert [item["rel_dir"] for item in payload["items"]] == ["album"]
 
 
 def test_index_status_endpoint_returns_snapshot_status() -> None:

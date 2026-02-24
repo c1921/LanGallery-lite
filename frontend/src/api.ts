@@ -12,9 +12,21 @@ export async function fetchFolders(
   page: number,
   pageSize = 50,
   forceRefresh = false,
+  query = "",
 ): Promise<FolderListResponse> {
-  const refreshQuery = forceRefresh ? "&refresh=true" : "";
-  const response = await fetch(`/api/images?page=${page}&page_size=${pageSize}${refreshQuery}`);
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (forceRefresh) {
+    params.set("refresh", "true");
+  }
+  const normalizedQuery = query.trim();
+  if (normalizedQuery) {
+    params.set("q", normalizedQuery);
+  }
+
+  const response = await fetch(`/api/images?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`读取文件夹失败: HTTP ${response.status}`);
   }

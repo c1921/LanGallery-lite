@@ -20,6 +20,8 @@ const currentFolder = ref<FolderInfo | null>(null);
 const currentPage = ref(1);
 const totalPages = ref(0);
 const totalFolders = ref(0);
+const searchInput = ref("");
+const appliedSearchQuery = ref("");
 
 const loading = ref(true);
 const loadError = ref("");
@@ -42,12 +44,21 @@ const countText = computed(() => {
   }
   return `${images.value.length} 张`;
 });
+const folderEmptyText = computed(() => {
+  if (!appliedSearchQuery.value) {
+    return "目录下没有可显示的文件夹";
+  }
+  return `未找到匹配“${appliedSearchQuery.value}”的文件夹`;
+});
 const pageText = computed(() => {
   const pages = totalPages.value > 0 ? totalPages.value : 1;
   return `第 ${currentPage.value} / ${pages} 页`;
 });
 const canPrevPage = computed(() => currentPage.value > 1);
 const canNextPage = computed(() => currentPage.value < totalPages.value);
+const canClearSearch = computed(
+  () => searchInput.value.trim().length > 0 || appliedSearchQuery.value.length > 0,
+);
 const showFolderPager = computed(
   () =>
     !loading.value &&
@@ -221,12 +232,18 @@ function onViewerTouchEnd(): void {
   showPrev();
 }
 
-async function loadFolderPage(page: number, forceRefresh = false): Promise<void> {
+async function loadFolderPage(
+  page: number,
+  forceRefresh = false,
+  searchQuery = appliedSearchQuery.value,
+): Promise<void> {
   loading.value = true;
   loadError.value = "";
+  const normalizedSearchQuery = searchQuery.trim();
+  appliedSearchQuery.value = normalizedSearchQuery;
 
   try {
-    const result = await fetchFolders(page, PAGE_SIZE, forceRefresh);
+    const result = await fetchFolders(page, PAGE_SIZE, forceRefresh, normalizedSearchQuery);
     viewMode.value = "folders";
     folders.value = result.items;
     currentPage.value = result.page;
@@ -306,7 +323,7 @@ function backToFolders(): void {
 
 function refreshCurrentView(): void {
   if (viewMode.value === "folders") {
-    void loadFolderPage(currentPage.value, true);
+    void loadFolderPage(currentPage.value, true, appliedSearchQuery.value);
     return;
   }
   void reloadCurrentFolder(true);
@@ -316,14 +333,27 @@ function goPrevPage(): void {
   if (!canPrevPage.value) {
     return;
   }
-  void loadFolderPage(currentPage.value - 1);
+  void loadFolderPage(currentPage.value - 1, false, appliedSearchQuery.value);
 }
 
 function goNextPage(): void {
   if (!canNextPage.value) {
     return;
   }
-  void loadFolderPage(currentPage.value + 1);
+  void loadFolderPage(currentPage.value + 1, false, appliedSearchQuery.value);
+}
+
+function submitSearch(): void {
+  const normalized = searchInput.value.trim();
+  void loadFolderPage(1, false, normalized);
+}
+
+function clearSearch(): void {
+  if (!canClearSearch.value) {
+    return;
+  }
+  searchInput.value = "";
+  void loadFolderPage(1, false, "");
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -407,6 +437,21 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
+    <section v-if="viewMode === 'folders'" class="searchbar">
+      <input
+        v-model="searchInput"
+        class="search-input"
+        type="search"
+        placeholder="搜索模特名（元数据）"
+        :disabled="loading"
+        @keydown.enter.prevent="submitSearch"
+      />
+      <button type="button" class="refresh" :disabled="loading" @click="submitSearch">搜索</button>
+      <button type="button" class="refresh" :disabled="loading || !canClearSearch" @click="clearSearch">
+        清空
+      </button>
+    </section>
+
     <nav v-if="showFolderPager" class="pager pager-top mobile-only">
       <button type="button" class="refresh" :disabled="!canPrevPage" @click="goPrevPage">上一页</button>
       <span class="pager-text">{{ pageText }}</span>
@@ -415,7 +460,7 @@ onBeforeUnmount(() => {
 
     <p v-if="loading" class="hint">加载中...</p>
     <p v-else-if="loadError" class="hint error">{{ loadError }}</p>
-    <p v-else-if="viewMode === 'folders' && !folders.length" class="hint">目录下没有可显示的文件夹</p>
+    <p v-else-if="viewMode === 'folders' && !folders.length" class="hint">{{ folderEmptyText }}</p>
     <p v-else-if="viewMode === 'folderImages' && !images.length" class="hint">当前文件夹没有可显示图片</p>
 
     <section v-if="!loading && !loadError && viewMode === 'folders' && folders.length" class="grid folder-grid">

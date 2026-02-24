@@ -75,6 +75,29 @@ body.viewer-scroll-locked {
   gap: 8px;
 }
 
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+}
+
+.search-input:focus {
+  outline: 2px solid rgba(25, 93, 200, 0.28);
+  outline-offset: 1px;
+}
+
 .count {
   color: var(--muted);
   font-size: 0.88rem;
@@ -277,6 +300,16 @@ body.viewer-scroll-locked {
   .count {
     margin-right: auto;
     min-width: 0;
+  }
+
+  .searchbar {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    flex: 1 1 100%;
+    min-height: 44px;
   }
 
   .grid {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import threading
 import time
 from dataclasses import dataclass
@@ -61,6 +62,7 @@ class GalleryIndexSnapshot:
     folders_ordered: list[GalleryFolderCover]
     images_by_folder: dict[str, list[GalleryImage]]
     images_ordered: list[GalleryImage]
+    folder_search_texts: dict[str, str]
 
     @property
     def folder_count(self) -> int:
@@ -123,6 +125,56 @@ def _default_thumb_builder(config: AppConfig) -> Callable[[str], str]:
     return lambda rel_path: _thumb_url(rel_path, size)
 
 
+def _normalize_search_text(value: str) -> str:
+    return " ".join(value.casefold().split())
+
+
+def _folder_metadata_path(config: AppConfig, rel_dir: str) -> Path:
+    if rel_dir == ".":
+        return config.gallery_dir / "post_meta.json"
+    return config.gallery_dir / Path(rel_dir) / "post_meta.json"
+
+
+def _load_folder_search_text(config: AppConfig, rel_dir: str) -> str:
+    metadata_path = _folder_metadata_path(config, rel_dir)
+    try:
+        raw = metadata_path.read_text(encoding="utf-8")
+        payload = json.loads(raw)
+    except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return ""
+
+    if not isinstance(payload, dict):
+        return ""
+
+    search_parts: list[str] = []
+    for field in ("keywords", "description"):
+        value = payload.get(field)
+        if isinstance(value, str) and value.strip():
+            search_parts.append(value)
+    if not search_parts:
+        return ""
+    return _normalize_search_text(" ".join(search_parts))
+
+
+def _filter_folders_by_query(
+    folders: list[GalleryFolderCover],
+    folder_search_texts: dict[str, str],
+    search_query: str | None,
+) -> list[GalleryFolderCover]:
+    if not search_query:
+        return folders
+
+    normalized_query = _normalize_search_text(search_query)
+    if not normalized_query:
+        return folders
+
+    return [
+        folder
+        for folder in folders
+        if normalized_query in folder_search_texts.get(folder.rel_dir, "")
+    ]
+
+
 def _scan_images(
     config: AppConfig,
     thumb_url_builder: Callable[[str], str] | None = None,
@@ -166,6 +218,7 @@ def _build_snapshot(
 
     folders: list[tuple[float, GalleryFolderCover]] = []
     images_by_folder: dict[str, list[GalleryImage]] = {}
+    folder_search_texts: dict[str, str] = {}
     for rel_dir, entries in groups.items():
         latest_entry = max(entries, key=lambda item: item[0])
         cover_image = max(entries, key=lambda item: (item[1].name, item[1].rel_path))[1]
@@ -180,12 +233,14 @@ def _build_snapshot(
         )
         folders.append((latest_entry[0], folder))
         images_by_folder[rel_dir] = [item[1] for item in sorted_entries]
+        folder_search_texts[rel_dir] = _load_folder_search_text(config, rel_dir)
 
     folders.sort(key=lambda item: _ci_sort_key(item[1].rel_dir))
     return GalleryIndexSnapshot(
         folders_ordered=[item[1] for item in folders],
         images_by_folder=images_by_folder,
         images_ordered=[entry[1] for entry in records],
+        folder_search_texts=folder_search_texts,
     )
 
 
@@ -194,6 +249,7 @@ def _empty_snapshot() -> GalleryIndexSnapshot:
         folders_ordered=[],
         images_by_folder={},
         images_ordered=[],
+        folder_search_texts={},
     )
 
 
@@ -224,6 +280,7 @@ class GalleryIndexService:
         page: int,
         page_size: int,
         refresh: bool = False,
+        search_query: str | None = None,
     ) -> FolderCoverPage:
         if page < 1:
             raise ValueError("Page must be at least 1.")
@@ -231,11 +288,16 @@ class GalleryIndexService:
             raise ValueError("Page size must be at least 1.")
 
         snapshot = self._ensure_snapshot(refresh=refresh)
-        total = snapshot.folder_count
+        filtered_folders = _filter_folders_by_query(
+            snapshot.folders_ordered,
+            snapshot.folder_search_texts,
+            search_query,
+        )
+        total = len(filtered_folders)
         total_pages = (total + page_size - 1) // page_size if total else 0
         start = (page - 1) * page_size
         end = start + page_size
-        items = snapshot.folders_ordered[start:end] if start < total else []
+        items = filtered_folders[start:end] if start < total else []
         return FolderCoverPage(
             items=items,
             total=total,
@@ -352,18 +414,28 @@ def list_images(config: AppConfig) -> list[GalleryImage]:
     return snapshot.images_ordered
 
 
-def list_folder_covers(config: AppConfig, page: int, page_size: int) -> FolderCoverPage:
+def list_folder_covers(
+    config: AppConfig,
+    page: int,
+    page_size: int,
+    search_query: str | None = None,
+) -> FolderCoverPage:
     if page < 1:
         raise ValueError("Page must be at least 1.")
     if page_size < 1:
         raise ValueError("Page size must be at least 1.")
 
     snapshot = _build_snapshot(config)
-    total = snapshot.folder_count
+    filtered_folders = _filter_folders_by_query(
+        snapshot.folders_ordered,
+        snapshot.folder_search_texts,
+        search_query,
+    )
+    total = len(filtered_folders)
     total_pages = (total + page_size - 1) // page_size if total else 0
     start = (page - 1) * page_size
     end = start + page_size
-    items = snapshot.folders_ordered[start:end] if start < total else []
+    items = filtered_folders[start:end] if start < total else []
 
     return FolderCoverPage(
         items=items,
