@@ -31,6 +31,14 @@ body {
     linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
 }
 
+body.viewer-scroll-locked {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 #app {
   min-height: 100vh;
   padding: 14px;

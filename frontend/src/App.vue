@@ -5,6 +5,12 @@ import { fetchFolderImages, fetchFolders } from "./api";
 import type { FolderCoverItem, FolderInfo, ImageItem } from "./types";
 
 const PAGE_SIZE = 50;
+const HASH_ROOT = "";
+const HASH_FOLDER = "#folder";
+const HASH_VIEWER = "#viewer";
+const VIEWER_SCROLL_LOCK_CLASS = "viewer-scroll-locked";
+
+type ViewHistoryRoute = "root" | "folder" | "viewer";
 
 const viewMode = ref<"folders" | "folderImages">("folders");
 const folders = ref<FolderCoverItem[]>([]);
@@ -24,9 +30,10 @@ const touchStartY = ref(0);
 const touchEndX = ref(0);
 const touchEndY = ref(0);
 const touching = ref(false);
+const lockedScrollY = ref(0);
 
-const SWIPE_MIN_X = 48;
-const SWIPE_MAX_Y = 36;
+const SWIPE_MIN_Y = 48;
+const SWIPE_MAX_X = 36;
 
 const activeImage = computed(() => images.value[activeIndex.value] ?? null);
 const countText = computed(() => {
@@ -59,15 +66,93 @@ const folderSubtitle = computed(() => {
   return currentFolder.value.rel_dir;
 });
 
+function routeToHash(route: ViewHistoryRoute): string {
+  if (route === "folder") {
+    return HASH_FOLDER;
+  }
+  if (route === "viewer") {
+    return HASH_VIEWER;
+  }
+  return HASH_ROOT;
+}
+
+function hashToRoute(hash: string): ViewHistoryRoute {
+  if (hash === HASH_VIEWER) {
+    return "viewer";
+  }
+  if (hash === HASH_FOLDER) {
+    return "folder";
+  }
+  return "root";
+}
+
+function buildUrlWithHash(hash: string): string {
+  return `${window.location.pathname}${window.location.search}${hash}`;
+}
+
+function syncRouteHash(route: ViewHistoryRoute, mode: "push" | "replace" = "replace"): void {
+  const targetHash = routeToHash(route);
+  if (window.location.hash === targetHash) {
+    return;
+  }
+
+  const targetUrl = buildUrlWithHash(targetHash);
+  if (mode === "push") {
+    window.history.pushState(null, "", targetUrl);
+    return;
+  }
+  window.history.replaceState(null, "", targetUrl);
+}
+
+function lockPageScroll(): void {
+  const body = document.body;
+  if (body.classList.contains(VIEWER_SCROLL_LOCK_CLASS)) {
+    return;
+  }
+  lockedScrollY.value = window.scrollY || window.pageYOffset || 0;
+  body.style.top = `-${lockedScrollY.value}px`;
+  body.classList.add(VIEWER_SCROLL_LOCK_CLASS);
+}
+
+function unlockPageScroll(): void {
+  const body = document.body;
+  if (!body.classList.contains(VIEWER_SCROLL_LOCK_CLASS)) {
+    return;
+  }
+  const top = body.style.top;
+  body.classList.remove(VIEWER_SCROLL_LOCK_CLASS);
+  body.style.top = "";
+
+  const restored = top ? Math.abs(Number.parseInt(top, 10)) : lockedScrollY.value;
+  window.scrollTo(0, Number.isNaN(restored) ? lockedScrollY.value : restored);
+  lockedScrollY.value = 0;
+}
+
 function openViewer(index: number): void {
+  if (viewMode.value !== "folderImages" || !images.value.length) {
+    return;
+  }
+  if (index < 0 || index >= images.value.length) {
+    return;
+  }
   activeIndex.value = index;
   viewerOpen.value = true;
   touching.value = false;
+  lockPageScroll();
+  syncRouteHash("viewer", "push");
+}
+
+function closeViewerState(syncHistory: boolean): void {
+  viewerOpen.value = false;
+  touching.value = false;
+  unlockPageScroll();
+  if (syncHistory && viewMode.value === "folderImages") {
+    syncRouteHash("folder", "replace");
+  }
 }
 
 function closeViewer(): void {
-  viewerOpen.value = false;
-  touching.value = false;
+  closeViewerState(true);
 }
 
 function showPrev(): void {
@@ -88,6 +173,7 @@ function clearViewer(): void {
   viewerOpen.value = false;
   activeIndex.value = 0;
   touching.value = false;
+  unlockPageScroll();
 }
 
 function onViewerTouchStart(event: TouchEvent): void {
@@ -125,10 +211,10 @@ function onViewerTouchEnd(): void {
 
   const deltaX = touchEndX.value - touchStartX.value;
   const deltaY = touchEndY.value - touchStartY.value;
-  if (Math.abs(deltaX) < SWIPE_MIN_X || Math.abs(deltaY) > SWIPE_MAX_Y) {
+  if (Math.abs(deltaY) < SWIPE_MIN_Y || Math.abs(deltaX) > SWIPE_MAX_X) {
     return;
   }
-  if (deltaX < 0) {
+  if (deltaY < 0) {
     showNext();
     return;
   }
@@ -169,6 +255,7 @@ async function openFolder(folder: FolderCoverItem): Promise<void> {
     currentFolder.value = result.folder;
     images.value = result.items;
     clearViewer();
+    syncRouteHash("folder", "push");
   } catch (error: unknown) {
     images.value = [];
     currentFolder.value = null;
@@ -203,11 +290,18 @@ async function reloadCurrentFolder(forceRefresh = false): Promise<void> {
   }
 }
 
-function backToFolders(): void {
+function backToFoldersState(syncHistory: boolean): void {
   viewMode.value = "folders";
   images.value = [];
   currentFolder.value = null;
   clearViewer();
+  if (syncHistory) {
+    syncRouteHash("root", "replace");
+  }
+}
+
+function backToFolders(): void {
+  backToFoldersState(true);
 }
 
 function refreshCurrentView(): void {
@@ -246,13 +340,45 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
+function onPopState(): void {
+  const route = hashToRoute(window.location.hash);
+
+  if (route === "viewer") {
+    if (viewMode.value === "folderImages" && images.value.length) {
+      viewerOpen.value = true;
+      touching.value = false;
+      lockPageScroll();
+      return;
+    }
+    syncRouteHash(viewMode.value === "folderImages" ? "folder" : "root", "replace");
+    return;
+  }
+
+  if (route === "folder") {
+    closeViewerState(false);
+    if (viewMode.value !== "folderImages") {
+      syncRouteHash("root", "replace");
+    }
+    return;
+  }
+
+  closeViewerState(false);
+  if (viewMode.value === "folderImages") {
+    backToFoldersState(false);
+  }
+}
+
 onMounted(() => {
   window.addEventListener("keydown", onKeydown);
+  window.addEventListener("popstate", onPopState);
+  syncRouteHash("root", "replace");
   void loadFolderPage(1);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("popstate", onPopState);
+  unlockPageScroll();
 });
 </script>
 
