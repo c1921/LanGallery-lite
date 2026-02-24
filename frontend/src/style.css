@@ -103,6 +103,11 @@ body {
   gap: 9px;
 }
 
+.folder-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
 .card {
   appearance: none;
   border: 1px solid var(--line);
@@ -130,6 +135,50 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.folder-card {
+  aspect-ratio: 4 / 3;
+  position: relative;
+}
+
+.folder-meta {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 10px 10px 9px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
+  color: #f5f7fb;
+  text-align: left;
+}
+
+.folder-name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.folder-sub {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: rgba(245, 247, 251, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.pager-text {
+  color: var(--muted);
+  font-size: 0.86rem;
+  min-width: 102px;
+  text-align: center;
 }
 
 .viewer {
@@ -185,6 +234,31 @@ body {
   .grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
+  }
+
+  .folder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .folder-meta {
+    padding: 8px 8px 7px;
+  }
+
+  .folder-name {
+    font-size: 0.85rem;
+  }
+
+  .folder-sub {
+    font-size: 0.72rem;
+  }
+
+  .pager {
+    gap: 8px;
+  }
+
+  .pager-text {
+    min-width: 90px;
   }
 
   .viewer-btn {
