@@ -1,0 +1,1 @@
+"""LanGallery Lite backend package."""
