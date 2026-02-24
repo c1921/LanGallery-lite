@@ -41,6 +41,14 @@ const pageText = computed(() => {
 });
 const canPrevPage = computed(() => currentPage.value > 1);
 const canNextPage = computed(() => currentPage.value < totalPages.value);
+const showFolderPager = computed(
+  () =>
+    !loading.value &&
+    !loadError.value &&
+    viewMode.value === "folders" &&
+    folders.value.length > 0 &&
+    totalPages.value > 1,
+);
 const folderSubtitle = computed(() => {
   if (!currentFolder.value) {
     return "";
@@ -273,6 +281,12 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
+    <nav v-if="showFolderPager" class="pager pager-top mobile-only">
+      <button type="button" class="refresh" :disabled="!canPrevPage" @click="goPrevPage">上一页</button>
+      <span class="pager-text">{{ pageText }}</span>
+      <button type="button" class="refresh" :disabled="!canNextPage" @click="goNextPage">下一页</button>
+    </nav>
+
     <p v-if="loading" class="hint">加载中...</p>
     <p v-else-if="loadError" class="hint error">{{ loadError }}</p>
     <p v-else-if="viewMode === 'folders' && !folders.length" class="hint">目录下没有可显示的文件夹</p>
@@ -294,10 +308,7 @@ onBeforeUnmount(() => {
       </button>
     </section>
 
-    <nav
-      v-if="!loading && !loadError && viewMode === 'folders' && folders.length && totalPages > 1"
-      class="pager"
-    >
+    <nav v-if="showFolderPager" class="pager">
       <button type="button" class="refresh" :disabled="!canPrevPage" @click="goPrevPage">上一页</button>
       <span class="pager-text">{{ pageText }}</span>
       <button type="button" class="refresh" :disabled="!canNextPage" @click="goNextPage">下一页</button>

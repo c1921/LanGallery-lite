@@ -181,6 +181,14 @@ body {
   margin: 14px 0 4px;
 }
 
+.pager-top {
+  margin: 4px 0 12px;
+}
+
+.mobile-only {
+  display: none;
+}
+
 .pager-text {
   color: var(--muted);
   font-size: 0.86rem;
@@ -296,6 +304,10 @@ body {
   .pager {
     gap: 8px;
     align-items: stretch;
+  }
+
+  .mobile-only {
+    display: flex;
   }
 
   .pager-text {
