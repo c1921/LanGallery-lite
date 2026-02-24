@@ -70,7 +70,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--thumb-size",
         type=int,
-        default=360,
+        default=1080,
         help="Default thumbnail max edge size.",
     )
     parser.add_argument(

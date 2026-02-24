@@ -19,6 +19,14 @@ const loading = ref(true);
 const loadError = ref("");
 const viewerOpen = ref(false);
 const activeIndex = ref(0);
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+const touchEndX = ref(0);
+const touchEndY = ref(0);
+const touching = ref(false);
+
+const SWIPE_MIN_X = 48;
+const SWIPE_MAX_Y = 36;
 
 const activeImage = computed(() => images.value[activeIndex.value] ?? null);
 const countText = computed(() => {
@@ -46,10 +54,12 @@ const folderSubtitle = computed(() => {
 function openViewer(index: number): void {
   activeIndex.value = index;
   viewerOpen.value = true;
+  touching.value = false;
 }
 
 function closeViewer(): void {
   viewerOpen.value = false;
+  touching.value = false;
 }
 
 function showPrev(): void {
@@ -69,6 +79,52 @@ function showNext(): void {
 function clearViewer(): void {
   viewerOpen.value = false;
   activeIndex.value = 0;
+  touching.value = false;
+}
+
+function onViewerTouchStart(event: TouchEvent): void {
+  if (!viewerOpen.value || !event.touches.length) {
+    return;
+  }
+  const touch = event.touches.item(0);
+  if (!touch) {
+    return;
+  }
+  touchStartX.value = touch.clientX;
+  touchStartY.value = touch.clientY;
+  touchEndX.value = touch.clientX;
+  touchEndY.value = touch.clientY;
+  touching.value = true;
+}
+
+function onViewerTouchMove(event: TouchEvent): void {
+  if (!touching.value || !event.touches.length) {
+    return;
+  }
+  const touch = event.touches.item(0);
+  if (!touch) {
+    return;
+  }
+  touchEndX.value = touch.clientX;
+  touchEndY.value = touch.clientY;
+}
+
+function onViewerTouchEnd(): void {
+  if (!touching.value || !viewerOpen.value) {
+    return;
+  }
+  touching.value = false;
+
+  const deltaX = touchEndX.value - touchStartX.value;
+  const deltaY = touchEndY.value - touchStartY.value;
+  if (Math.abs(deltaX) < SWIPE_MIN_X || Math.abs(deltaY) > SWIPE_MAX_Y) {
+    return;
+  }
+  if (deltaX < 0) {
+    showNext();
+    return;
+  }
+  showPrev();
 }
 
 async function loadFolderPage(page: number, forceRefresh = false): Promise<void> {
@@ -263,7 +319,14 @@ onBeforeUnmount(() => {
     </section>
   </main>
 
-  <div v-if="viewerOpen && activeImage" class="viewer" @click.self="closeViewer">
+  <div
+    v-if="viewerOpen && activeImage"
+    class="viewer"
+    @click.self="closeViewer"
+    @touchstart.passive="onViewerTouchStart"
+    @touchmove.passive="onViewerTouchMove"
+    @touchend="onViewerTouchEnd"
+  >
     <header class="viewer-top">
       <p class="viewer-meta">
         {{ activeIndex + 1 }} / {{ images.length }} · {{ activeImage.name }}

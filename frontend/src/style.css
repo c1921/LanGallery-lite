@@ -81,11 +81,18 @@ body {
   padding: 8px 14px;
   font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .refresh:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.refresh:active,
+.viewer-btn:active {
+  filter: brightness(0.96);
 }
 
 .hint {
@@ -228,7 +235,32 @@ body {
 
 @media (max-width: 640px) {
   #app {
-    padding: 10px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .topbar > :first-child {
+    flex: 1 1 100%;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .count {
+    margin-right: auto;
+    min-width: 0;
   }
 
   .grid {
@@ -237,8 +269,16 @@ body {
   }
 
   .folder-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .folder-card {
+    aspect-ratio: auto;
+  }
+
+  .folder-card img {
+    height: auto;
   }
 
   .folder-meta {
@@ -255,10 +295,35 @@ body {
 
   .pager {
     gap: 8px;
+    align-items: stretch;
   }
 
   .pager-text {
+    min-width: 72px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+
+  .refresh,
+  .viewer-btn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .pager .refresh {
     min-width: 90px;
+  }
+
+  .viewer {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .viewer-top,
+  .viewer-actions {
+    gap: 8px;
   }
 
   .viewer-btn {

@@ -17,5 +17,5 @@ class AppConfig:
     index_ttl_seconds: int = 60
     thumb_enabled: bool = True
     thumb_cache_dir: Path | None = None
-    thumb_size: int = 360
+    thumb_size: int = 1080
     thumb_quality: int = 82

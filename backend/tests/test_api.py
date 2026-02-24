@@ -72,6 +72,7 @@ def test_images_endpoint_returns_folder_covers_with_paging() -> None:
     assert payload["items"][0]["cover"]["rel_path"] == "root.jpg"
     assert payload["items"][1]["cover"]["rel_path"] == "album/z-cover.jpg"
     assert payload["items"][0]["cover"]["thumb_url"].startswith("/api/thumb/")
+    assert payload["items"][0]["cover"]["thumb_url"].endswith("?size=1080")
     assert payload["items"][1]["image_count"] == 2
 
 
@@ -89,6 +90,7 @@ def test_folder_images_endpoint_returns_folder_images() -> None:
         "album/z-cover.jpg",
     ]
     assert payload["items"][0]["thumb_url"].startswith("/api/thumb/")
+    assert payload["items"][0]["thumb_url"].endswith("?size=1080")
 
 
 def test_images_endpoint_supports_refresh_param() -> None:

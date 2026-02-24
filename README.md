@@ -35,7 +35,7 @@ python -m backend.app.main --gallery-dir "D:\Photos" --host 0.0.0.0 --port 8000
 - `--index-ttl-seconds`：索引缓存过期时间（秒），默认 `60`
 - `--thumb-enabled / --no-thumb-enabled`：是否启用磁盘缩略图缓存（默认启用）
 - `--thumb-cache-dir`：缩略图缓存目录，默认 `<gallery-dir>/.cache/thumbs`
-- `--thumb-size`：默认缩略图最长边，默认 `360`
+- `--thumb-size`：默认缩略图最长边，默认 `1080`
 - `--thumb-quality`：缩略图 JPEG 质量，默认 `82`
 
 ## API 说明
@@ -43,7 +43,7 @@ python -m backend.app.main --gallery-dir "D:\Photos" --host 0.0.0.0 --port 8000
 - `GET /api/images?page=1&page_size=50`：分页获取文件夹封面
 - `GET /api/images/{rel_dir}`：获取指定目录图片列表
 - `GET /api/media/{rel_path}`：返回原图
-- `GET /api/thumb/{rel_path}?size=360`：返回缩略图（启用缩略图缓存时）
+- `GET /api/thumb/{rel_path}?size=1080`：返回缩略图（启用缩略图缓存时）
 - `GET /api/index/status`：索引状态（构建中、图片数、目录数、索引年龄）
 
 可选查询参数：
